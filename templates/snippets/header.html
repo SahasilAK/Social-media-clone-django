@@ -38,18 +38,18 @@
 							</div>
 
 							<div class="btn-group dropleft">
-								<img class="account-image rounded-circle m-auto d-block dropdown-toggle" id="id_profile_links" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" src="{{ request.user.profile_image.url }}" alt="codingwithmitch logo" width="40" height="40">
+								<img class="account-image rounded-circle m-auto d-block dropdown-toggle" id="id_profile_links" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" src="{{ request.user.profile_image.url }}" alt="profile pic" width="40" height="40">
 								<div class="dropdown-menu" aria-labelledby="id_profile_links">
 									<a class="dropdown-item" href="{% url 'account:view' user_id=request.user.id %}">Account</a>
-									<a class="dropdown-item" href="{% url 'account:logout' %}">Logout</a>
+									<a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
 								</div>
 							</div>
 						</div>
 
 					</div>
 				{% else %}
-					<a class="p-2 text-dark" href="{% url 'account:login' %}">Login</a>
-					<a class="btn btn-outline-primary" href="{% url 'account:register' %}">Register</a>
+					<a class="p-2 text-dark" href="{% url 'login' %}">Login</a>
+					<a class="btn btn-outline-primary" href="{% url 'register' %}">Register</a>
 				{% endif %}
 			</nav>
 		</div>
@@ -73,14 +73,14 @@
 							<img class="account-image rounded-circle m-auto d-block dropdown-toggle" id="id_profile_links" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" src="{{ request.user.profile_image.url }}" alt="codingwithmitch logo" width="40" height="40">
 							<div class="dropdown-menu" aria-labelledby="id_profile_links">
 								<a class="dropdown-item" href="{% url 'account:view' user_id=request.user.id %}">Account</a>
-								<a class="dropdown-item" href="{% url 'account:logout' %}">Logout</a>
+								<a class="dropdown-item" href="{% url 'logout' %}">Logout</a>
 							</div>
 						</div>
 					</div>
 				</div>
 				{% else %}
 					<a class="p-2 text-dark" href="#">Login</a>
-					<a class="btn btn-outline-primary m-2" href="{% url 'account:register' %}">Register</a>
+					<a class="btn btn-outline-primary m-2" href="{% url 'register' %}">Register</a>
 				{% endif %}
 			</nav>
 	  	</div>

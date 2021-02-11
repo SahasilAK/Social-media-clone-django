@@ -20,7 +20,12 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
 from personal.views import (home_screen_view)
-from account.views import account_search_view
+from account.views import (
+                                register_view,
+                                login_view,
+                                logout_view,
+                                account_search_view
+                                )
 
 
 
@@ -30,6 +35,9 @@ urlpatterns = [
     path('', home_screen_view,name='home'),
 
     #account app urls
+    path('register/',register_view,name="register"),
+    path('login/',login_view,name="login"),
+    path('logout/',logout_view,name="logout"),
     path('account/',include("account.urls", namespace="account")),
     path('search/',account_search_view,name="search"),
 
