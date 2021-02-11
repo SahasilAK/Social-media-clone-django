@@ -31,7 +31,6 @@ urlpatterns = [
 
     #account app urls
     path('account/',include("account.urls", namespace="account")),
-    path('accounts/', include("django.contrib.auth.urls")),
 
 
     #password reset urls

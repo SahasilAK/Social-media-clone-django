@@ -158,4 +158,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'media_cdn')
 
 TEMP = os.path.join(BASE_DIR,'media_cdn/temp')
 
-BASE_DIR = "https://127.0.0.1:8000"
+BASE_URL = "https://127.0.0.1:8000"
