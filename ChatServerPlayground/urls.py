@@ -20,7 +20,7 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
 from personal.views import (home_screen_view)
-
+from account.views import account_search_view
 
 
 
@@ -31,6 +31,7 @@ urlpatterns = [
 
     #account app urls
     path('account/',include("account.urls", namespace="account")),
+    path('search/',account_search_view,name="search"),
 
 
     #password reset urls
