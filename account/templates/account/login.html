@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}
+  LogIn
+{% endblock %}
+
 {% block content %}
 
 
@@ -39,7 +43,7 @@
 				<img class="img-fluid mx-auto d-block" src="{% static 'default_images/mf.jpg' %}" alt="codingwithmitch logo" width="72" height="72">
 				</div>
 				<input type="email" name="email" id="inputEmail" class="form-control" placeholder="Email address" required autofocus>
-      
+
 
 				<input type="password" name="password" id="inputPassword" class="form-control" placeholder="Password" required>
         <br>
@@ -62,7 +66,7 @@
 				</form>
 
 				<div class="d-flex flex-column my-4">
-					<a class="m-auto" href="#">Reset password</a>
+					<a class="m-auto" href="{% url 'password_reset' %}">Reset password</a>
 				</div>
 		  </div>
 		</div>
