@@ -79,7 +79,8 @@ class AccountUpdateForm(forms.ModelForm):
         account = super(AccountUpdateForm, self).save(commit=False)
         account.username = self.cleaned_data['username']
         account.email = self.cleaned_data['email']
-        # account.profile_image = self.cleaned_data['profile_image']
+        # account.profile_image = self.cleaned_data['profile_image']d:
+
         account.hide_email = self.cleaned_data['hide_email']
 
         if commit:

@@ -12,6 +12,11 @@ import json
 import base64
 import requests
 from django.core import files
+from friend.models import FriendList, FriendRequest
+from friend.utils import get_friend_request_or_false
+from friend.friend_request_status import FriendRequestStatus
+
+
 
 
 TEMP_PROFILE_IMAGE_NAME = "temp_profile_image.png"
@@ -108,6 +113,14 @@ def account_view(request,*args,**kwargs):
         context['profile_image'] = account.profile_image.url
         context['hide_email'] = account.hide_email
 
+        try:
+            friend_list = FriendList.objects.get(user=account)
+        except FriendList.DoesNotExist:
+            friend_list = FriendList(user=account)
+            friend_list.save()
+        friends = friend_list.friends.all()
+        context['friends'] = friends
+
 
         #defining template variables
         is_self = True
@@ -115,12 +128,39 @@ def account_view(request,*args,**kwargs):
         user = request.user
         if user.is_authenticated and user !=account:
             is_self = False
+            if friends.filter(pk=user.id):
+                is_friend = True
+            else:
+                is_friend = False
+
+                # CASE1: Request has been sent from THEM to YOU: FriendRequestStatus.THEM_SENT_TO_YOU
+                if get_friend_request_or_false(sender=account, receiver=user) != False:
+                    request_sent = FriendRequestStatus.THEM_SENT_TO_YOU.value
+                    context['pending_friend_request_id'] = get_friend_request_or_false(sender=account, receiver=user).id
+
+                # CASE2: Request has been sent from YOU to THEM: FriendRequestStatus.YOU_SENT_TO_THEM
+                elif get_friend_request_or_false(sender=user, receiver=account) != False:
+                    request_sent = FriendRequestStatus.YOU_SENT_TO_THEM.value
+
+                # CASE3: No request sent from YOU or THEM: FriendRequestStatus.NO_REQUEST_SENT
+                else:
+                    request_sent = FriendRequestStatus.NO_REQUEST_SENT.value
+
+
 
         elif not user.is_authenticated:
             is_self = False
 
+        else:
+            try:
+                friend_requests = FriendRequest.objects.filter(receiver=user, is_active=True)
+            except:
+                pass
+
         context['is_self'] = is_self
         context['is_friend'] = is_friend
+        context['request_sent'] = request_sent
+        context['friend_requests'] = friend_requests
         context['BASE_URL'] = settings.BASE_URL
 
         return render(request, "account/account.html", context)
