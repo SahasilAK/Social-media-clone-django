@@ -125,6 +125,8 @@ def account_view(request,*args,**kwargs):
         #defining template variables
         is_self = True
         is_friend = False
+        request_sent = FriendRequestStatus.NO_REQUEST_SENT.value
+        friend_requests = None
         user = request.user
         if user.is_authenticated and user !=account:
             is_self = False
