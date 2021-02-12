@@ -25,8 +25,8 @@ def friends_list_view(request, *args, **kwargs):
 
 			#must be frnds to view frnds lst
 			if user != this_user:
-				if not user in friends_list.friends.all():
-					return HttpResponse("You must be friends to view their friends list")
+				if not user in friend_list.friends.all():
+					return HttpResponse("<h1>You must be friends to view their friends list</h1>")
 
 			friends = [] #[(f1,T),(f2,T),(f3,F)..]
 			#get the authenticated users friends list
