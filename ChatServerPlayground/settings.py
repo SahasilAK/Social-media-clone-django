@@ -104,7 +104,7 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
-DB_NAME = "chatserverplayground_app"
+DB_NAME = "chatsydb"
 DB_USER = "django"
 DB_PASSWORD = "password"
 DATABASES = {
