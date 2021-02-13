@@ -1,9 +1,11 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from channels.db import database_sync_to_async
 import json
 from django.contrib.auth import get_user_model
 from django.contrib.humanize.templatetags.humanize import naturaltime, naturalday
 from django.utils import timezone
 from datetime import datetime
+from public_chat.models import PublicChatRoom
 
 User = get_user_model()
 
@@ -21,12 +23,9 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
         # let everyone connect. But limit read/write to authenticated users.
         await self.accept()
+        self.room_id = None
 
-        #Add them to the group so they get room messages
-        await self.channel_layer.group_add(
-            "public_chatroom_1",
-            self.channel_name,
-        )
+
 
 
     async def disconnect(self, code):
@@ -38,39 +37,68 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
         print(f'PublicChatConsumer: disconnect')
 
-        pass
+        try:
+            if self.room_id != None:
+                await self.leave_room(self.room_id)
+        except Exception:
+            pass
 
     async def receive_json(self, content):
         """
 		Called when we get a text frame. Channels will JSON-decode the payload
 		for us and pass it as the first argument.
 		"""
+        print(content)
+
+
 
         # Messages will have a "command" key we can switch on
         command = content.get("command", None)
         print(f'PublicChatConsumer: receive_json: {str(command)}')
-        print(f'PublicChatConsumer: receive_json: message: {str(content["message"])}')
+
+
 
         try:
             if command == "send":
+
                 if len(content["message"].lstrip()) == 0:
                     raise Exception("You can't send an empty message.")
+                await self.send_room(content["room_id"], content["message"])
 
-                await self.send_message(content["message"])
+            elif command == "join":
+                    #Make them join the room
+                    await self.join_room(content["room"])
+            elif command == "leave":
+                    #Leave the room
+                    await self.leave_room(content["room"])
+
+
         except ClientError as e:
-            #Catch any erros and send it back
-            errorData = {}
-            errorData['error'] = e.code
-            if e.message:
-                errorData['message'] = e.message
-
-            await self.send_json(errorData)
+            await self.handle_client_error(e)
 
 
-    async def send_message(self, message):
+    async def send_room(self, room_id, message):
+        """
+		Called by receive_json when someone sends a message to a room.
+		"""
+        # check they are in this room
+
+        print("PublicChatConsumer: send_room")
+        if self.room_id != None:
+            if str(room_id) != str(self.room_id):
+                raise ClientError("ROOM_ACCESS_DENIED", "Room access denied.")
+            if not is_authenticated(self.scope["user"]):
+                raise ClientError("AUTH_ERROR", "You must be authenticated to chat.")
+
+        else:
+            raise ClientError("ROOM_ACCESS_DENIED", "Room access denied.")
+
+        #Get the room and send to the group about it
+        room = await  get_room_or_error(room_id)
+
 
         await self.channel_layer.group_send(
-            "public_chatroom_1",
+            room.group_name,
                 {
                 "type":"chat.message",
                 "profile_image":self.scope["user"].profile_image.url,
@@ -99,7 +127,105 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
              "natural_timestamp": timestamp,
              },
             )
-        
+
+    async def join_room(self, room_id):
+        """
+		Called by receive_json when someone sent a join command.
+		"""
+        print("PublicChatRoom: join_room")
+        is_auth = is_authenticated(self.scope["user"])
+
+        try:
+            room = await get_room_or_error(room_id)
+
+        except ClientError as e:
+            await self.handle_client_error(e)
+
+        #add user to "users" list for room
+        if is_auth:
+            await connect_user(room, self.scope["user"])
+
+        #Store that we're in the room
+        self.room_id = room.id
+
+        #Add them to the group so they get room messages
+        await self.channel_layer.group_add(
+                    room.group_name,
+                    self.channel_name,
+                    )
+
+        #Instruct their client to finish opening the room
+        await self.send_json({
+
+            "join": str(room.id)
+
+        })
+
+    async  def leave_room(self, room_id):
+        """
+		Called by receive_json when someone sent a leave command.
+		"""
+        print("PublicChatConsumer: leave_room")
+        is_auth = is_authenticated(self.scope["user"])
+        room = await get_room_or_error(room_id)
+
+        #Remove user from "users" list
+
+        if is_auth:
+            await disconnect_user(room, self.scope["user"])
+
+        # Remove them from the group so they no longer get room messages
+        await self.channel_layer.group_discard(
+                    room.group_name,
+                    self.channel_name,
+                    )
+
+    async def handle_client_error(self, e):
+        """
+		Called when a ClientError is raised.
+		Sends error data to UI.
+		"""
+
+        errorData = {}
+        errorData['error'] = e.code
+        if e.message:
+            errorData['message'] = e.message
+            await self.send_json(errorData)
+
+        return
+
+
+def is_authenticated(user):
+    if user.is_authenticated:
+        return True
+
+    return False
+
+@database_sync_to_async
+def connect_user(room, user):
+    return room.connect_user( user)
+
+@database_sync_to_async
+def disconnect_user(room, user):
+    return room.disconnect_user(user)
+
+
+@database_sync_to_async
+def get_room_or_error(room_id):
+    """
+	Tries to fetch a room for the user
+	"""
+
+    try:
+        room = PublicChatRoom.objects.get(pk=room_id)
+
+    except PublicChatRoom.DoesNotExist:
+        raise ClientError("Room_INVALID", "Invalid room")
+
+    return room
+
+
+
 
 class ClientError(Exception):
     """
