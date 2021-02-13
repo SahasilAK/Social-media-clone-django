@@ -1,6 +1,9 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 import json
 from django.contrib.auth import get_user_model
+from django.contrib.humanize.templatetags.humanize import naturaltime, naturalday
+from django.utils import timezone
+from datetime import datetime
 
 User = get_user_model()
 
@@ -65,6 +68,7 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
 
     async def send_message(self, message):
+
         await self.channel_layer.group_send(
             "public_chatroom_1",
                 {
@@ -80,9 +84,10 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
         """
         Called when someone has messaged our chat.
         """
-        
+
 
         print(f"PublicChatConsumer:chat_message from user #{str(event['user_id'])}")
+        timestamp = calculate_timestamp(timezone.now())
 
         await self.send_json(
             {
@@ -91,8 +96,10 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
              "username": event["username"],
              "user_id" : event["user_id"],
              "message": event["message"],
+             "natural_timestamp": timestamp,
              },
             )
+        
 
 class ClientError(Exception):
     """
@@ -104,3 +111,30 @@ class ClientError(Exception):
         self.code = code
         if message:
         	self.message = message
+
+
+
+def calculate_timestamp(timestamp):
+    """
+    1. Today or yesterday:
+        - EX: 'today at 10:56 AM'
+        - EX: 'yesterday at 5:19 PM'
+    2. other:
+        - EX: 05/06/2020
+        - EX: 12/28/2020
+    """
+    ts = ''
+    #today or yeasterday
+    if (naturalday(timestamp) == "today") or (naturalday(timestamp) == "yesterday"):
+        str_time = datetime.strftime(timestamp, "%I:%M:%Y")
+        str_time = str_time.strip("0")
+        ts = f'{naturalday(timestamp)} at {str_time}'
+
+
+        #otherdays
+    else:
+        str_time = datetime.strftime(timestamp, "%m/%d/%Y")
+        ts =f'{str_time}'
+
+
+    return str(ts)
