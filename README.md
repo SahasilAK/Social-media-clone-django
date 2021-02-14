@@ -1,2 +1,3 @@
 # chat-app-django
- A chat application using django 2.2 with friend system and private or public chat
+A social media clone with friend system, real time chats, groups, posts etc
+using django 2.2
