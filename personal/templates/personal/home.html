@@ -68,6 +68,12 @@
 }
 
 </style>
+{% if debug %}
+
+PUBLIC CHAT
+
+{% endif %}
+<span class="{% if not debug %}d-none{% endif %} page-number" id="id_page_number">1</span>
 
 <div class="container">
 
@@ -90,93 +96,97 @@
 
 <script type="text/javascript">
 
-	setupPublicChatWebSocket()
+// Correctly decide between ws:// and wss://
+var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
+{% if debug_mode %}
+  var ws_path = ws_scheme + '://' + window.location.host + "/public_chat/{{room_id}}/"; // development
+{% else %}
+  var ws_path = ws_scheme + '://' + window.location.host + ":8001/public_chat/{{room_id}}/"; // production
+{% endif %}
+var public_chat_socket = new WebSocket(ws_path);
 
-	function setupPublicChatWebSocket(){
-		// Correctly decide between ws:// and wss://
-		var ws_scheme = window.location.protocol == "https:" ? "wss" : "ws";
-		{% if debug_mode %}
-			var ws_path = ws_scheme + '://' + window.location.host + "/public_chat/{{room_id}}/"; // development
-		{% else %}
-			var ws_path = ws_scheme + '://' + window.location.host + ":8001/public_chat/{{room_id}}/"; // production
-		{% endif %}
-		var public_chat_socket = new WebSocket(ws_path);
-
-		// Handle incoming messages
-		public_chat_socket.onmessage = function(message) {
-			console.log("Got chat websocket message " + message.data);
+      // Handle incoming messages
+      public_chat_socket.onmessage = function(message) {
+      console.log("Got chat websocket message " + message.data);
       var data = JSON.parse(message.data);
 
       // Handle errors (ClientError)
-			if (data.error) {
-				console.error(data.error + ": " + data.message)
-				showClientErrorModal(data.message)
-				return;
-			}
-
+      if (data.error) {
+        console.error(data.error + ": " + data.message)
+        showClientErrorModal(data.message)
+        return;
+      }
       // Handle joining (Client perspective)
-      if (data.join){
-          console.log("Joining public room" + data.join);
-
+      if (data.join) {
+        console.log("Joining public room " + data.join);
+        getRoomChatMessages()
       }
 
-			// Handle getting a message
-			if (data.msg_type == 0) {
-				appendChatMessage(data)
-			}
 
-		};
 
-		public_chat_socket.addEventListener("open", function(e){
-			console.log("Public Public ChatSocket OPEN")
-      //Join chat room
-      if("{{request.user.is_authenticated}}"){
-        public_chat_socket.send(JSON.stringify({
-          "command":"join",
-          "room":"{{room_id}}"
-        }));
+      // Handle getting a message
+      if (data.msg_type == 0) {
+        appendChatMessage(data)
       }
-		})
+      // new payload of messages coming in from backend
+      if(data.messages_payload){
+        console.log("PAYLOAD")
+        handleMessagesPayload(data.messages, data.new_page_number)
+      }
+      };
 
-		public_chat_socket.onclose = function(e) {
-			console.error('Public ChatSocket closed.');
-		};
 
-		public_chat_socket.onOpen = function(e){
-			console.log("Public ChatSocket onOpen", e)
-		}
+      public_chat_socket.addEventListener("open", function(e){
+      console.log("Public Public ChatSocket OPEN")
+        // join chat room
+        if("{{request.user.is_authenticated}}"){
+          public_chat_socket.send(JSON.stringify({
+            "command": "join",
+            "room": "{{room_id}}"
+          }));
+        }
+      })
 
-		public_chat_socket.onerror = function(e){
-	        console.log('Public ChatSocket error', e)
-	    }
+      public_chat_socket.onclose = function(e) {
+    		console.error('Public ChatSocket closed.');
+    	};
 
-	    if (public_chat_socket.readyState == WebSocket.OPEN) {
-	    	console.log("Public ChatSocket OPEN")
-	    } else if (public_chat_socket.readyState == WebSocket.CONNECTING){
-	        console.log("Public ChatSocket connecting..")
-	    }
-      document.getElementById('id_chat_message_input').focus();
-		document.getElementById('id_chat_message_input').onkeyup = function(e) {
-			if (e.keyCode === 13 && e.shiftKey) {  // enter + return
-				// Handled automatically by textarea
-			}
-			else if(e.keyCode === 13 && !e.shiftKey){ // enter + !return
-				document.getElementById('id_chat_message_submit').click();
-			}
-		};
+      public_chat_socket.onOpen = function(e){
+        		console.log("Public ChatSocket onOpen", e)
+        	}
 
-	    document.getElementById('id_chat_message_submit').onclick = function(e) {
-			const messageInputDom = document.getElementById('id_chat_message_input');
-			const message = messageInputDom.value;
-			public_chat_socket.send(JSON.stringify({
-                "command": "send",
-                "message": message,
-                "room_id": "{{room_id}}"
+      public_chat_socket.onerror = function(e){
+        console.log('Public ChatSocket error', e)
+    }
 
-			}));
-			messageInputDom.value = '';
-		};
-	}
+
+
+    if (public_chat_socket.readyState == WebSocket.OPEN) {
+    console.log("Public ChatSocket OPEN")
+    } else if (public_chat_socket.readyState == WebSocket.CONNECTING){
+      console.log("Public ChatSocket connecting..")
+    }
+
+    document.getElementById('id_chat_message_input').focus();
+    document.getElementById('id_chat_message_input').onkeyup = function(e) {
+    if (e.keyCode === 13 && e.shiftKey) {  // enter + return
+    // Handled automatically by textarea
+    }
+    else if(e.keyCode === 13 && !e.shiftKey){ // enter + !return
+    document.getElementById('id_chat_message_submit').click();
+    }
+    };
+
+    document.getElementById('id_chat_message_submit').onclick = function(e) {
+    const messageInputDom = document.getElementById('id_chat_message_input');
+    const message = messageInputDom.value;
+    public_chat_socket.send(JSON.stringify({
+    "command": "send",
+    "message": message,
+    "room_id": "{{room_id}}"
+    }));
+    messageInputDom.value = '';
+    };
 
 	function appendChatMessage(data){
 
@@ -193,6 +203,56 @@
 		createChatMessageElement(msg, username, profile_image, user_id, timestamp)
 
 	}
+
+  function handleMessagesPayload(messages, new_page_number){
+    if(messages != null && messages != "undefined" && messages != "None"){
+              setPageNumber(new_page_number)
+              messages.forEach(function(message){
+                      appendChatMessage(message, true, false)
+              })
+    }
+
+    else{
+      setPaginationExhausted() // no more messages
+    }
+  }
+
+  function setPageNumber(pageNumber){
+          document.getElementById("id_page_number").innerHTML = pageNumber
+  }
+  function setPaginationExhausted(){
+          setPageNumber("-1")
+  }
+
+  /*
+    Retrive the room messages given the page number.
+  */
+
+  function getRoomChatMessages(){
+        var pageNumber = document.getElementById("id_page_number").innerHTML
+        if(pageNumber != "-1"){
+          setPageNumber("-1") // Do not allow any other queries while one is in progress
+          public_chat_socket.send(JSON.stringify({
+                  "command": "get_room_chat_messages",
+                  "room_id": "{{room_id}}",
+                  "page_number":pageNumber,
+          }));
+        }
+  }
+  /*
+		Get the next page of chat messages when scrolls to bottom
+	*/
+
+  document.getElementById("id_chat_log").addEventListener("scroll", function(e){
+                var chatLog = document.getElementById("id_chat_log")
+                chatLog.addEventListener("scroll", function(e){
+                        if((Math.abs(chatLog.scrollTop) + 2) >= (chatLog.scrollHeight - chatLog.offsetHeight)){
+                                  getRoomChatMessages()
+                        }
+                });
+  })
+
+
 
   function createChatMessageElement(msg, username, profile_image, user_id, timestamp){
 
