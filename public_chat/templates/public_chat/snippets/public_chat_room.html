@@ -115,7 +115,7 @@ PUBLIC CHAT
 
 	// Handle incoming messages
 	public_chat_socket.onmessage = function(message) {
-		console.log("Got chat websocket message " + message.data);
+		// console.log("Got chat websocket message " + message.data);
 		var data = JSON.parse(message.data);
 
 		// display the progress bar?
@@ -307,7 +307,7 @@ PUBLIC CHAT
 		div1.appendChild(div2)
 
 		var msgP = document.createElement("p")
-		msgP.innerHTML = msg
+		msgP.innerHTML = validateText(msg)
 		msgP.classList.add("msg-p")
 		div1.appendChild(msgP)
 
