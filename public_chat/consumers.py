@@ -9,12 +9,10 @@ from django.contrib.humanize.templatetags.humanize import naturaltime, naturalda
 from django.utils import timezone
 from datetime import datetime
 from public_chat.models import PublicChatRoom, PublicRoomChatMessage
+from public_chat.constants import *
 
 User = get_user_model()
 
-MSG_TYPE_MESSAGE = 0  # For standard messages
-
-DEFAULT_ROOM_CHAT_MESSAGE_PAGE_SIZE = 10
 
 class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
@@ -80,6 +78,7 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
                     await self.leave_room(content["room"])
 
             elif command == "get_room_chat_messages":
+                await self.display_progress_bar(True)
 
                 room = await get_room_or_error(content['room_id'])
                 payload = await get_room_chat_messages(room, content['page_number'])
@@ -89,11 +88,13 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
                 else:
                     raise ClientError(204, "Something went wrong retrieving the chatroom messages.")
+                await self.display_progress_bar(False)
 
 
 
 
         except ClientError as e:
+            await self.display_progress_bar(False)
             await self.handle_client_error(e)
 
 
@@ -183,6 +184,18 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 
         })
 
+        #Send the new user count to the room
+        num_connected_users = get_num_connected_users(room)
+
+        await self.channel_layer.group_send(
+                                                room.group_name,
+                                                {
+                                                "type": "connected.user.count",
+                                                "connected_user_count": num_connected_users,
+                                                }
+                                            )
+
+
     async  def leave_room(self, room_id):
         """
 		Called by receive_json when someone sent a leave command.
@@ -201,6 +214,18 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
                     room.group_name,
                     self.channel_name,
                     )
+        #send the new user count to the room
+        num_connected_users = get_num_connected_users(room)
+
+        await self.channel_layer.group_send(
+                room.group_name,
+                {
+                "type": "connected.user.count",
+                "connected_user_count": num_connected_users,
+
+                }
+            )
+
 
     async def handle_client_error(self, e):
         """
@@ -221,7 +246,7 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
 		Send a payload of messages to the ui
 		"""
         print("PublicChatConsumer: send_mesages_payload.")
-        
+
 
 
         await self.send_json(
@@ -231,6 +256,44 @@ class PublicChatConsumer(AsyncJsonWebsocketConsumer):
                                     "new_page_number": new_page_number,
                                 },
                                     )
+
+    async def connected_user_count(self, event):
+        """
+		Called to send the number of connected users to the room.
+		This number is displayed in the room so other users know how many users are connected to the chat.
+		"""
+        #send a message down to the client
+        print(f"PublicChatConsumer: connected_user_count:{ str(event['connected_user_count'])}")
+
+        await self.send_json(
+                            {
+                                "msg_type":MSG_TYPE_CONNECTED_USER_COUNT,
+                                "connected_user_count": event["connected_user_count"]
+
+                                },
+                            )
+
+
+
+    async def display_progress_bar(self, is_displayed):
+        """
+		1. is_displayed = True
+		- Display the progress bar on UI
+		2. is_displayed = False
+		- Hide the progress bar on UI
+		"""
+        print(f"DISPLAY PROGRESS  BAR: str(is_displayed)")
+        await self.send_json(
+                                {
+                                "display_progress_bar": is_displayed
+                                }
+                                )
+
+
+
+
+
+
 
 
 
@@ -275,7 +338,10 @@ def get_room_chat_messages(room, page_number):
 def create_public_room_chat_message(room, user, message):
     return PublicRoomChatMessage.objects.create(user=user, room=room, content=message)
 
-
+def get_num_connected_users(room):
+	if room.users:
+		return len(room.users.all())
+	return 0
 
 
 @database_sync_to_async
@@ -345,9 +411,12 @@ def calculate_timestamp(timestamp):
 
 class LazyRoomChatMessageEncoder(Serializer):
     def get_dump_object(self, obj):
+        
+
 
         dump_object = {}
         dump_object.update({'msg_type': MSG_TYPE_MESSAGE})
+        dump_object.update({'msg_id': str(obj.id)})
         dump_object.update({'user_id': str(obj.user_id)})
         dump_object.update({'username': str(obj.user.username)})
         dump_object.update({'message': str(obj.content)})
