@@ -53,9 +53,11 @@ INSTALLED_APPS = [
     'account',
     'friend',
     'public_chat',
+    'chat',
     #Extras
     'channels',
     'django.contrib.humanize',
+
 
 ]
 

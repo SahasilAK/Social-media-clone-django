@@ -11,6 +11,7 @@ from datetime import datetime
 from public_chat.models import PublicChatRoom, PublicRoomChatMessage
 from public_chat.constants import *
 
+
 User = get_user_model()
 
 
@@ -411,7 +412,7 @@ def calculate_timestamp(timestamp):
 
 class LazyRoomChatMessageEncoder(Serializer):
     def get_dump_object(self, obj):
-        
+
 
 
         dump_object = {}
