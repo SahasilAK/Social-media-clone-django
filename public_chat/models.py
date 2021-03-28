@@ -5,6 +5,9 @@ class PublicChatRoom(models.Model):
     title = models.CharField(max_length=255, unique=True, blank=False)
     users = models.ManyToManyField(settings.AUTH_USER_MODEL, help_text="users who are connected to the chat", null=True,blank=True)
 
+    connected_user = models.ManyToManyField(settings.AUTH_USER_MODEL,blank=True,related_name='connected_user')
+    is_active = models.BooleanField(default=True)
+
 
     def __str__(self):
         return self.title

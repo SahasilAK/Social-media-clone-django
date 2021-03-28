@@ -45,6 +45,9 @@ urlpatterns = [
     #Friend app urls
     path('friend/',include("friend.urls", namespace="friend")),
 
+    #private chat url
+    path('chat/',include('chat.urls',namespace='chat')),
+
 
 
     #password reset urls
